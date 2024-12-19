@@ -12,7 +12,8 @@ import flamesIcon from "./dashboardAssets/flames.png";
 import likeIcon from "./dashboardAssets/like.png";
 import HeaderSection from '../header/HeaderSection';
 import ProfileMonitoring from '../MonitoringCards/ProfileMonitoring';
-import MonitoringSection from '../monitoringCards/MonitoringSection';
+import MonitoringSection from '../MonitoringCards/MonitoringSection';
+import Question from '../pageBody/dashboardAssets/question-mark.png'
 
 function MonitoringBody() {
   const [personnel, setPersonnel] = useState([]); // Firestore data
@@ -166,7 +167,7 @@ function MonitoringBody() {
         title="REAL-TIME MONITORING"
         extraContent={
           <select
-            className="text-xl text-white bg-primeColor font-semibold border border-gray-300 rounded-lg px-4 py-2"
+            className="text-xl text-white bg-bfpNavy font-semibold border border-gray-300 rounded-lg px-4 py-2"
             onChange={handleSelectChange}
           >
             <option value="">Select Personnel</option>
