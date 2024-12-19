@@ -1,23 +1,31 @@
-import React, { useState } from 'react';
-import { db } from '../../firebase/Firebase'; // Firestore configuration
-import { collection, addDoc } from 'firebase/firestore'; // Firestore methods
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // Firebase Storage methods
+import React, { useState, useEffect } from 'react';
+import { db } from '../../firebase/Firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-// Initialize Firebase Storage
 const storage = getStorage();
 
-function AddPersonnelModal({ isOpen, closeModal }) {
+function EditPersonnelModal({ isOpen, closeModal, personnelId, existingData }) {
   const [personnelInfo, setPersonnelInfo] = useState({
-    gearId: '', // Renamed id to gearId
+    gearId: '',
     name: '',
     position: '',
     age: '',
     birthdate: '',
     phone: '',
+    image: '',
   });
 
-  const [imageFile, setImageFile] = useState(null); // State for uploaded image
-  const [imagePreview, setImagePreview] = useState(null); // State for image preview
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+
+  // Load existing data when the modal opens
+  useEffect(() => {
+    if (existingData) {
+      setPersonnelInfo(existingData);
+      setImagePreview(existingData.image || null);
+    }
+  }, [existingData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -30,39 +38,41 @@ function AddPersonnelModal({ isOpen, closeModal }) {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     setImageFile(file);
-    setImagePreview(URL.createObjectURL(file)); // Generate preview URL for the image
+    setImagePreview(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      let imageUrl = '';
+      console.log('Submitting updated personnel info...');
+      let imageUrl = personnelInfo.image;
 
-      // Upload image to Firebase Storage if there's an image file
+      // Upload new image if file exists
       if (imageFile) {
+        console.log('Uploading new image...');
         const storageRef = ref(storage, `personnelImages/${personnelInfo.gearId}/${personnelInfo.gearId}`);
-
-        await uploadBytes(storageRef, imageFile); // Upload file
-        imageUrl = await getDownloadURL(storageRef); // Get public URL
+        await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(storageRef);
       }
 
-      // Save personnel info to Firestore with gearId and image URL
-      await addDoc(collection(db, 'personnelInfo'), {
-        gearId: personnelInfo.gearId, // Save gearId instead of id
+      // Update Firestore document
+      console.log('Updating Firestore document...');
+      const personnelDocRef = doc(db, 'personnelInfo', personnelId);
+      await updateDoc(personnelDocRef, {
+        gearId: personnelInfo.gearId,
         name: personnelInfo.name,
         position: personnelInfo.position,
         age: personnelInfo.age,
         birthdate: personnelInfo.birthdate,
         phone: personnelInfo.phone,
-        image: imageUrl, // Save image URL in Firestore
+        image: imageUrl,
       });
 
-      // Close modal and show success message
+      alert('Personnel info updated successfully!');
       closeModal();
-      alert('Personnel info saved successfully!');
     } catch (error) {
-      console.error('Error saving personnel info:', error);
-      alert('Failed to save personnel info');
+      console.error('Error updating personnel info:', error);
+      alert('Failed to update personnel info. Check the console for details.');
     }
   };
 
@@ -74,37 +84,36 @@ function AddPersonnelModal({ isOpen, closeModal }) {
         <button onClick={closeModal} className="absolute top-2 right-2 text-black">
           X
         </button>
-        <h2 className="text-xl font-bold mb-4">Add Personnel Information</h2>
+        <h2 className="text-xl font-bold mb-4">Edit Personnel Information</h2>
 
         <form className="space-y-4 grid grid-cols-1 lg:grid-cols-2 gap-6" onSubmit={handleSubmit}>
-          {/* Left Column */}
-          <div className="flex flex-col space-y-4">
-            {/* Image Upload */}
-            <div className="flex items-center space-x-4">
-              {imagePreview && (
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="w-24 h-24 object-cover rounded-full"
-                />
-              )}
-              <label
-                htmlFor="image"
-                className="block text-sm font-medium text-gray-700 cursor-pointer"
-              >
-                Upload Image
-                <input
-                  type="file"
-                  id="image"
-                  name="image"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md"
-                />
-              </label>
-            </div>
+          {/* Image Upload */}
+          <div className="flex items-center space-x-4">
+            {imagePreview && (
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="w-24 h-24 object-cover rounded-full"
+              />
+            )}
+            <label
+              htmlFor="image"
+              className="block text-sm font-medium text-gray-700 cursor-pointer"
+            >
+              Upload Image
+              <input
+                type="file"
+                id="image"
+                name="image"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md"
+              />
+            </label>
+          </div>
 
-            {/* Gear ID Field */}
+          {/* Form Fields */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <label htmlFor="gearId" className="block text-sm font-medium text-gray-700">
                 Gear ID
@@ -119,8 +128,6 @@ function AddPersonnelModal({ isOpen, closeModal }) {
                 placeholder="Enter Gear ID"
               />
             </div>
-
-            {/* Name Field */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                 Name
@@ -132,14 +139,9 @@ function AddPersonnelModal({ isOpen, closeModal }) {
                 value={personnelInfo.name}
                 onChange={handleInputChange}
                 className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md"
-                placeholder="Enter full name"
+                placeholder="Enter Name"
               />
             </div>
-          </div>
-
-          {/* Right Column */}
-          <div className="flex flex-col space-y-4">
-            {/* Position Field */}
             <div>
               <label htmlFor="position" className="block text-sm font-medium text-gray-700">
                 Position
@@ -151,11 +153,9 @@ function AddPersonnelModal({ isOpen, closeModal }) {
                 value={personnelInfo.position}
                 onChange={handleInputChange}
                 className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md"
-                placeholder="Enter position"
+                placeholder="Enter Position"
               />
             </div>
-
-            {/* Age Field */}
             <div>
               <label htmlFor="age" className="block text-sm font-medium text-gray-700">
                 Age
@@ -167,11 +167,9 @@ function AddPersonnelModal({ isOpen, closeModal }) {
                 value={personnelInfo.age}
                 onChange={handleInputChange}
                 className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md"
-                placeholder="Enter age"
+                placeholder="Enter Age"
               />
             </div>
-
-            {/* Birthdate Field */}
             <div>
               <label htmlFor="birthdate" className="block text-sm font-medium text-gray-700">
                 Birthdate
@@ -185,11 +183,9 @@ function AddPersonnelModal({ isOpen, closeModal }) {
                 className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md"
               />
             </div>
-
-            {/* Phone Field */}
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                Phone Number
+                Phone
               </label>
               <input
                 type="tel"
@@ -198,7 +194,7 @@ function AddPersonnelModal({ isOpen, closeModal }) {
                 value={personnelInfo.phone}
                 onChange={handleInputChange}
                 className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md"
-                placeholder="Enter phone number"
+                placeholder="Enter Phone Number"
               />
             </div>
           </div>
@@ -209,7 +205,7 @@ function AddPersonnelModal({ isOpen, closeModal }) {
               type="submit"
               className="w-1/2 py-2 bg-blue text-white font-semibold rounded-full hover:bg-blue-700"
             >
-              Save Information
+              Save Changes
             </button>
           </div>
         </form>
@@ -218,4 +214,4 @@ function AddPersonnelModal({ isOpen, closeModal }) {
   );
 }
 
-export default AddPersonnelModal;
+export default EditPersonnelModal;
